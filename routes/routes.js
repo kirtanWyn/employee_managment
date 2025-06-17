@@ -20,5 +20,13 @@ router.get("/attendanceHistory",  validation.getAttendanceHistory(), controller.
 
 router.get("/dashboardSummary", authMiddleware , controller.getDashboardSummary);
 
+
+router.post("/applyLeave",  validation.applyLeave(), controller.applyLeave);
+router.get("/getLeaves", validation.getLeaves() , controller.getLeaves);
+router.put('/updateLeaveStatus',validation.updateLeaveStatus(),controller.updateLeaveStatus);
+
+//cron job test api
+router.get("/monthlyReport", controller.sendMonthlyReports);
+
 console.log("im out of router");
 module.exports = router;

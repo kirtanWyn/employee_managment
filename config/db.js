@@ -9,6 +9,7 @@ db.Admin = require("../models/admin")(sequelize, DataTypes, Model);
 db.Attendance = require("../models/attendance")(sequelize, DataTypes, Model);
 db.Employee = require("../models/employee")(sequelize, DataTypes, Model);
 db.Document = require("../models/documents")(sequelize, DataTypes, Model);
+db.Leave = require("../models/leave")(sequelize, DataTypes, Model);
 
 // ASSOCIATIONS
 // Employee - Document
@@ -27,6 +28,15 @@ db.Employee.hasMany(db.Attendance, {
     sourceKey: "employee_id", 
     targetKey: "employee_id" });
 db.Attendance.belongsTo(db.Employee, { 
+    foreignKey: "employee_id", 
+    sourceKey: "employee_id", 
+    targetKey: "employee_id" });
+
+db.Employee.hasMany(db.Leave, { 
+    foreignKey: "employee_id", 
+    sourceKey: "employee_id", 
+    targetKey: "employee_id" });
+db.Leave.belongsTo(db.Employee, { 
     foreignKey: "employee_id", 
     sourceKey: "employee_id", 
     targetKey: "employee_id" });

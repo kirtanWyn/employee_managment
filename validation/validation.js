@@ -7,6 +7,8 @@ const { authMiddleware } = require("../middleware/auth");
 const fs = require("fs");
 const { validateFiles } = require('../utils/fileValidation');
 
+const moment = require("moment");
+
 const validation = (req, res, next) => {
     console.log("API path", `------>BaseUrl/${req.url}`);
     console.log("<<input>>req.query", req.query);
@@ -310,3 +312,65 @@ exports.getAttendanceHistory = () => {
     ];
 };
 
+exports.applyLeave = () => {
+    return [
+        [
+            // check("date").optional()
+                // .isISO8601().withMessage("Invalid date format (use YYYY-MM-DD)"),
+            check("employee_id").notEmpty().withMessage("Employee ID is required")
+                .isInt({ min: 1 }).withMessage("Employee ID must be a valid number"),
+
+            check("start_date").notEmpty().withMessage("Start date is required")
+                .isISO8601().withMessage("Invalid date format (use YYYY-MM-DD)")
+                .isDate().withMessage("Start date must be a valid date")
+                .custom((value) => {
+                  if (moment(value).isBefore(moment(), "day")) {
+                    throw new Error("Start date cannot be in the past");
+                  }
+                  return true;
+                 }),
+
+            check("end_date").notEmpty().withMessage("End date is required")
+                .isISO8601().withMessage("Invalid date format (use YYYY-MM-DD)")
+                .isDate().withMessage("End date must be a valid date")
+                .custom((value, { req }) => {
+                if (moment(value).isBefore(req.body.start_date)) {
+                        throw new Error("End date must be after start date");
+                    }
+                    return true;
+                 }),
+
+            check("reason").optional().isString().withMessage("Reason must be a string")
+                .isLength({ max: 255 }).withMessage("Reason can't exceed 255 characters"),
+        ],
+        checkForUnexpectedFields(["employee_id", "start_date", "end_date", "reason"]),
+        validation,
+        // authMiddleware,
+    ];
+};
+exports.getLeaves = () => {
+    return [
+        [
+            check("status").optional().isIn(["pending", "approved", "rejected"])
+                    .withMessage("Status must be one of: pending, approved, rejected"),
+            check("page").notEmpty().withMessage("Page is required")
+                    .isInt({ min: 1 }).withMessage("Page must be a positive integer"),
+        ],
+        checkForUnexpectedFields(["status", "page"]),
+        validation,
+        authMiddleware,
+    ];
+}
+exports.updateLeaveStatus = () => {
+    return [
+        [
+            check("status").optional().isIn(["approved", "rejected"])
+                    .withMessage("Status must be one of: approved, rejected"),
+              check("leave_id").notEmpty().withMessage("Leave ID is required")
+                .isInt({ min: 1 }).withMessage("Leave ID must be a valid number"),
+        ],
+        checkForUnexpectedFields(["status", "leave_id"]),
+        validation,
+        authMiddleware,
+    ];
+}

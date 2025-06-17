@@ -75,5 +75,28 @@ const attendanceMark = async (email, status, name, date) => {
     throw error; // rethrow the error to be caught in the calling function
 }
 };
+const sendEmail = async (email, subject, text) => {
+    try{
+    //2.configure email content
+    const mailOptions ={
+        from :process.env.SMTP_MAIL,
+        to   :  email,
+        subject : subject,
+        text:text
+       
+    }
 
-module.exports = { attendanceMark } 
+    //3.send email
+   transporter.sendMail(mailOptions, (error,info)=>{
+    if(error) {
+        console.error("Error sending emailxx:", error);
+    }else{
+        console.log("Email sent:", info.response);
+    }
+  });
+}catch(error){
+    console.error("Error sending email!(try catch block):", error);
+    throw error; // rethrow the error to be caught in the calling function
+}
+}
+module.exports = { attendanceMark ,sendEmail } 

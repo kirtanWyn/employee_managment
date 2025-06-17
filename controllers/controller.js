@@ -533,6 +533,213 @@ const getDashboardSummary = async (req, res) => {
   }
 };
 
+const applyLeave = async (req, res) => {
+  try {
+    const { employee_id, start_date, end_date, reason } = req.body;
+
+    const isEmployeeExist = await db.Employee.findByPk(employee_id) 
+    if(!isEmployeeExist) return res.status(404).json({message:"Employee not exist"})
+
+    const leave = await db.Leave.create({
+      employee_id,
+      start_date,
+      end_date,
+      reason,
+    });
+
+    return res.status(201).json({
+      message: "Leave applied successfully",
+      leave,
+    });
+  } catch (error) {
+    console.error("Error applying for leave:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+const getLeaves = async (req, res) => {
+  try {
+    const { status, page = 1, limit = 10 } = req.query;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+
+    const whereCondition = {};
+    if (status) {
+      // if (!["pending", "approved", "rejected"].includes(status.toLowerCase())) {
+      //   return res.status(400).json({ message: "Invalid status filter" });
+      // }
+      whereCondition.status = status.toLowerCase();
+    }
+
+    const result = await db.Leave.findAndCountAll({
+      where: whereCondition,
+      include: [
+        {
+          model: db.Employee,
+          attributes: ["employee_id", "name", "email", "designation"],
+        },
+      ],
+      order: [["createdAt", "DESC"]],
+      limit: parseInt(limit),
+      offset,
+      distinct: true,
+    });
+
+    return res.status(200).json({
+      total: result.count,
+      currentPage: parseInt(page),
+      totalPages: Math.ceil(result.count / limit),
+      data: result.rows,
+    });
+  } catch (error) {
+    console.error("Error fetching leaves:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+const updateLeaveStatus = async (req, res) => {
+  try {
+    const { leave_id, status } = req.body; // status = "approved" or "rejected"
+
+    const leave = await db.Leave.findByPk(leave_id);
+    if (!leave) {
+      return res.status(404).json({ message: "Leave not found" });
+    }
+
+    leave.status = status;
+    await leave.save();
+
+    return res.status(200).json({
+      message: `Leave ${status}`,
+      leave,
+    });
+  } catch (error) {
+    console.error("Error updating leave status:", error);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+
+const sendMonthlyReports = async () => {
+  try {
+    const startOfMonth = moment().startOf("month").format("YYYY-MM-DD");
+    const endOfMonth = moment().endOf("month").format("YYYY-MM-DD");
+
+    console.log("Generating report for:", startOfMonth, "to", endOfMonth);
+
+    const employees = await db.Employee.findAll({
+      where: { status: "active" },
+    });
+
+    for (const emp of employees) {
+      const attendanceRecords = await db.Attendance.findAll({
+        where: {
+          employee_id: emp.employee_id,
+          date: {
+            [Op.between]: [startOfMonth, endOfMonth],
+          },
+        },
+      });
+
+      const leaves = await db.Leave.findAll({
+        where: {
+          employee_id: emp.employee_id,
+          status: "approved",
+          [Op.or]: [
+            {
+              start_date: {
+                [Op.between]: [startOfMonth, endOfMonth],
+              },
+            },
+            {
+              end_date: {
+                [Op.between]: [startOfMonth, endOfMonth],
+              },
+            },
+          ],
+        },
+      });
+
+      const summary = `
+        Monthly Report - ${moment().format("MMMM YYYY")}
+        Name: ${emp.name}
+        Attendance:
+        - Present: ${attendanceRecords.filter(a => a.status === "present").length}
+        - Absent: ${attendanceRecords.filter(a => a.status === "absent").length}
+        - Half-day: ${attendanceRecords.filter(a => a.status === "half_day").length}
+
+        Leaves Applied & Approved: ${leaves.length}
+      `;
+
+      console.log(summary);
+
+      // Uncomment when ready to send
+      await emailFun.sendEmail(emp.email, "Monthly Attendance Report", summary);
+
+    }
+    console.log("Monthly reports sent.");
+   // return res.status(200).json({message: `Monthly reports sent.`});
+  } catch (error) {
+    console.error("Error sending monthly reports:", error);
+    // return res.status(200).json({message: `internal server error`});
+
+  }
+};
+
+// const sendMonthlyReports = async () => {
+//   try {
+//     const currentMonth = moment().format("YYYY-MM");
+//     console.log("____<currentMonth",currentMonth);
+    
+//     const employees = await db.Employee.findAll({ where: { status: "active" } });
+
+//     for (const emp of employees) {
+//       const attendanceRecords = await db.Attendance.findAll({
+//         where: {
+//           employee_id: emp.employee_id,
+//           date: {
+//             [Op.like]: `${currentMonth}-%`
+//           },
+//         },
+//       });
+
+//       const leaves = await db.Leave.findAll({
+//         where: {
+//           employee_id: emp.employee_id,
+//           status: "approved",
+//           [Op.or]: [
+//             {
+//               start_date: {
+//                 [Op.like]: `${currentMonth}-%`
+//               },
+//             },
+//             {
+//               end_date: {
+//                 [Op.like]: `${currentMonth}-%`
+//               },
+//             },
+//           ],
+//         },
+//       });
+
+//       const summary = `
+//         Monthly Report - ${moment().format("MMMM YYYY")}
+//         Name: ${emp.name}
+//         Attendance:
+//         - Present: ${attendanceRecords.filter(a => a.status === "present").length}
+//         - Absent: ${attendanceRecords.filter(a => a.status === "absent").length}
+//         - Half-day: ${attendanceRecords.filter(a => a.status === "half_day").length}
+        
+//         Leaves Applied & Approved: ${leaves.length}
+//       `;
+// console.log(summary);
+
+//       // await emailFun.sendEmail(emp.email, "Monthly Attendance Report", summary);
+//     }
+
+//     console.log("Monthly reports sent.");
+//   } catch (error) {
+//     console.error("Error sending monthly reports:", error);
+//   }
+// };
+
 module.exports = {
   adminLogin,
 
@@ -540,7 +747,8 @@ module.exports = {
 
   markAttendance, getAttendanceByDate, getAttendanceHistory,
 
-  getDashboardSummary
+  getDashboardSummary,
 
+  applyLeave, getLeaves, updateLeaveStatus, sendMonthlyReports
 };
 

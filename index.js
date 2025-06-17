@@ -1,4 +1,5 @@
 require("dotenv").config();
+require("./crons/monthlyReport");
 const { db } = require("./config/db");
 
 const express = require("express");
@@ -23,6 +24,7 @@ const start = async () => {
     console.log('...........Connection has been established successfully........');
     //COMMENT BELOW LINE AFTER FIRST TIME CODE EXECUTION
     //await db.sequelize.sync({ alter: true });
+    //await db.Leave.sync({ alter: true });
 
     const ensureAdminExists = async () => {
       const existing = await db.Admin.findOne();
