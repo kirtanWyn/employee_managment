@@ -6,7 +6,7 @@ const { Op, where } = require("sequelize");
 const fs = require("fs").promises;
 const { db } = require("../config/db");
 const path = require('path');
-const moment = require("moment"); 
+const moment = require("moment");
 
 const emailFun = require("../services/emailService");
 
@@ -58,7 +58,7 @@ const adminLogin = async (req, res) => {
 
 const createEmployee = async (req, res) => {
   try {
-    const { name, mobile_number, designation, email, hobby,} = req.body;
+    const { name, mobile_number, designation, email, hobby, salary, reason } = req.body;
     const { profile_photo, documents } = req.files;
 
 
@@ -81,9 +81,19 @@ const createEmployee = async (req, res) => {
       designation,
       email,
       hobby: hobbyToSave,
+      salary,
       profile_photo: profile_photo_url,
     });
 
+    await db.SalaryHistory.create({
+      employee_id: newEmployee.employee_id,
+      salary: salary,
+      change_reason: reason || "Salary update",
+    });
+
+    // Then update employee table
+    // employee.salary = newSalary;
+    // await employee.save();
     await Promise.all(documents.map(async (element, index) => {
       console.log("im in documents");
       const ext = element.originalname.split(".").pop();
@@ -100,6 +110,7 @@ const createEmployee = async (req, res) => {
         file_path: `uploads/document/${imageUrlWithExt}`,
       });
     }));
+
     res.status(201).json({
       message: "Employee created successfully",
       employee: newEmployee,
@@ -182,6 +193,7 @@ const updateEmployee = async (req, res) => {
       designation,
       hobby,
       status,
+      salary, reason,
     } = req.body;
 
     const employee = await db.Employee.findByPk(employee_id);
@@ -189,7 +201,7 @@ const updateEmployee = async (req, res) => {
       return res.status(404).json({ message: "Employee not found" });
     }
 
-    let parsedHobby = employee.hobby;  
+    let parsedHobby = employee.hobby;
 
     if (hobby) {
       if (typeof hobby === "string") {
@@ -209,6 +221,7 @@ const updateEmployee = async (req, res) => {
         return res.status(400).json({ message: "Invalid hobby format" });
       }
     }
+
     // Handle profile photo (if provided)
     let profilePhotoPath = employee.profile_photo;
     const profilePhoto = req.files?.profile_photo?.[0];
@@ -242,7 +255,16 @@ const updateEmployee = async (req, res) => {
       hobby: parsedHobby,
       status,
       profile_photo: profilePhotoPath,
+      salary: salary
     });
+    if (salary) {
+      await db.SalaryHistory.create({
+        employee_id,
+        salary: salary,
+        change_reason: reason || "Salary update",
+      });
+    }
+
     console.log(">>>>>>><><><><><><><", req.files.documents);
 
     // Handle documents
@@ -493,7 +515,7 @@ const getDashboardSummary = async (req, res) => {
     const totalInactiveEmployees = await db.Employee.count({
       where: { status: "inactive" },
     });
-   
+
     // Get attendance counts grouped by status
     const attendanceCounts = await db.Attendance.findAll({
       where: { date: today },
@@ -501,16 +523,16 @@ const getDashboardSummary = async (req, res) => {
       group: ["status"],
       raw: true,
     });
-  const totalAttendanceToday = await db.Attendance.count({
+    const totalAttendanceToday = await db.Attendance.count({
       where: { date: today },
     });
-    
+
     // Prepare summary
     let summary = {
-      totalEmployees:totalActiveEmployees+totalInactiveEmployees ,
+      totalEmployees: totalActiveEmployees + totalInactiveEmployees,
       activeEmployees: totalActiveEmployees,
       inactiveEmployees: totalInactiveEmployees,
-      totalAttendanceToday ,
+      totalAttendanceToday,
       presentToday: 0,
       absentToday: 0,
       half_dayToday: 0,
@@ -537,8 +559,8 @@ const applyLeave = async (req, res) => {
   try {
     const { employee_id, start_date, end_date, reason } = req.body;
 
-    const isEmployeeExist = await db.Employee.findByPk(employee_id) 
-    if(!isEmployeeExist) return res.status(404).json({message:"Employee not exist"})
+    const isEmployeeExist = await db.Employee.findByPk(employee_id)
+    if (!isEmployeeExist) return res.status(404).json({ message: "Employee not exist" })
 
     const leave = await db.Leave.create({
       employee_id,
@@ -675,7 +697,7 @@ const sendMonthlyReports = async () => {
 
     }
     console.log("Monthly reports sent.");
-   // return res.status(200).json({message: `Monthly reports sent.`});
+    // return res.status(200).json({message: `Monthly reports sent.`});
   } catch (error) {
     console.error("Error sending monthly reports:", error);
     // return res.status(200).json({message: `internal server error`});
@@ -683,62 +705,45 @@ const sendMonthlyReports = async () => {
   }
 };
 
-// const sendMonthlyReports = async () => {
-//   try {
-//     const currentMonth = moment().format("YYYY-MM");
-//     console.log("____<currentMonth",currentMonth);
-    
-//     const employees = await db.Employee.findAll({ where: { status: "active" } });
+const getEmployeeSalaryHistory = async (req, res) => {
+  try {
+    const { employee_id, page = 1, limit = 10 } = req.query;
 
-//     for (const emp of employees) {
-//       const attendanceRecords = await db.Attendance.findAll({
-//         where: {
-//           employee_id: emp.employee_id,
-//           date: {
-//             [Op.like]: `${currentMonth}-%`
-//           },
-//         },
-//       });
+    // Check if employee exists
+    const employee = await db.Employee.findByPk(employee_id);
+    if (!employee) {
+      return res.status(404).json({ message: "Employee not found" });
+    }
 
-//       const leaves = await db.Leave.findAll({
-//         where: {
-//           employee_id: emp.employee_id,
-//           status: "approved",
-//           [Op.or]: [
-//             {
-//               start_date: {
-//                 [Op.like]: `${currentMonth}-%`
-//               },
-//             },
-//             {
-//               end_date: {
-//                 [Op.like]: `${currentMonth}-%`
-//               },
-//             },
-//           ],
-//         },
-//       });
+    const offset = (page - 1) * limit;
 
-//       const summary = `
-//         Monthly Report - ${moment().format("MMMM YYYY")}
-//         Name: ${emp.name}
-//         Attendance:
-//         - Present: ${attendanceRecords.filter(a => a.status === "present").length}
-//         - Absent: ${attendanceRecords.filter(a => a.status === "absent").length}
-//         - Half-day: ${attendanceRecords.filter(a => a.status === "half_day").length}
-        
-//         Leaves Applied & Approved: ${leaves.length}
-//       `;
-// console.log(summary);
+    // Get salary history
+    const { rows: history, count: total } = await db.SalaryHistory.findAndCountAll({
+      where: { employee_id },
+      order: [["updatedAt", "DESC"]],
+      limit: parseInt(limit),
+      offset: parseInt(offset),
+    });
 
-//       // await emailFun.sendEmail(emp.email, "Monthly Attendance Report", summary);
-//     }
+    if (history.length === 0) {
+      return res.status(200).json({ message: "No salary history found", data: [] });
+    }
 
-//     console.log("Monthly reports sent.");
-//   } catch (error) {
-//     console.error("Error sending monthly reports:", error);
-//   }
-// };
+    return res.status(200).json({
+      message: "Salary history fetched successfully",
+      data: history,
+      pagination: {
+        total,
+        page: parseInt(page),
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching salary history:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
 
 module.exports = {
   adminLogin,
@@ -749,6 +754,7 @@ module.exports = {
 
   getDashboardSummary,
 
-  applyLeave, getLeaves, updateLeaveStatus, sendMonthlyReports
+  applyLeave, getLeaves, updateLeaveStatus, 
+  sendMonthlyReports , getEmployeeSalaryHistory
 };
 

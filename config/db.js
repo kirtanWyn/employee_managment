@@ -10,6 +10,7 @@ db.Attendance = require("../models/attendance")(sequelize, DataTypes, Model);
 db.Employee = require("../models/employee")(sequelize, DataTypes, Model);
 db.Document = require("../models/documents")(sequelize, DataTypes, Model);
 db.Leave = require("../models/leave")(sequelize, DataTypes, Model);
+db.SalaryHistory = require("../models/salaryHistory")(sequelize, DataTypes, Model);
 
 // ASSOCIATIONS
 // Employee - Document
@@ -37,6 +38,15 @@ db.Employee.hasMany(db.Leave, {
     sourceKey: "employee_id", 
     targetKey: "employee_id" });
 db.Leave.belongsTo(db.Employee, { 
+    foreignKey: "employee_id", 
+    sourceKey: "employee_id", 
+    targetKey: "employee_id" });
+
+db.Employee.hasMany(db.SalaryHistory, {
+    foreignKey: "employee_id", 
+    sourceKey: "employee_id", 
+    targetKey: "employee_id" });
+db.SalaryHistory.belongsTo(db.Employee, { 
     foreignKey: "employee_id", 
     sourceKey: "employee_id", 
     targetKey: "employee_id" });

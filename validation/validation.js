@@ -104,6 +104,7 @@ exports.createEmployee = () => {
         ]),
         [
             check("name").notEmpty().withMessage("name is required").trim().escape(),
+            check("salary").notEmpty().withMessage("salary is required").trim().escape(),
             check("designation").notEmpty().withMessage("designation is required").trim().escape(),
             check("mobile_number").notEmpty().withMessage("mobile_number is required")
                 .isMobilePhone().withMessage("mobile_number must be a valid phone"),
@@ -151,7 +152,7 @@ exports.createEmployee = () => {
             }),
         ],
 
-        checkForUnexpectedFields(["name", "designation", "mobile_number", "hobby", "profile_photo", "documents", "email"]),
+        checkForUnexpectedFields(["name", "designation", "mobile_number", "hobby", "profile_photo", "documents", "email","salary"]),
         validation,
         authMiddleware,
     ];
@@ -181,6 +182,7 @@ exports.updateEmployee = () => {
             check('employee_id').notEmpty().withMessage('employee_id is required')
                 .isInt({ gt: 0 }).withMessage('employee_id is not vaild'),
             check("name").optional().trim().escape(),
+            check("salary").optional().trim().escape(),
             check("designation").optional().trim().escape(),
             check("mobile_number").optional().isMobilePhone().withMessage("Invalid mobile number"),
             check("status").optional().isIn(["active", "inactive"]).withMessage("Status must be 'active' or 'inactive'"),
@@ -220,7 +222,7 @@ exports.updateEmployee = () => {
             }),
 
         ],
-        checkForUnexpectedFields(["employee_id", "name", "designation", "mobile_number", "hobby", "status", "profile_photo", "documents",]),
+        checkForUnexpectedFields(["employee_id", "name", "designation", "mobile_number", "hobby", "status", "profile_photo", "documents", "salary"]),
         validation,
         authMiddleware,
     ];

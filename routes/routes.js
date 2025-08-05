@@ -28,5 +28,7 @@ router.put('/updateLeaveStatus',validation.updateLeaveStatus(),controller.update
 //cron job test api
 router.get("/monthlyReport", controller.sendMonthlyReports);
 
+router.get("/employeeSalaryHistory", validation.getAttendanceHistory() , controller.getEmployeeSalaryHistory);
+
 console.log("im out of router");
 module.exports = router;

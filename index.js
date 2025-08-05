@@ -8,10 +8,29 @@ const app = express();
 const http = require("http")
 app.use('/uploads', express.static('uploads'));
 app.use(express.json());
+const cors = require('cors')
+app.use(cors());
 
 const routes = require("./routes/routes")
 const validationRouter = require("./utils/routerAuth");
 
+const swaggerUi = require('swagger-ui-express');
+const swaggerJsdoc = require('swagger-jsdoc');
+
+const options = {
+  definition: {
+    openapi: '3.0.0',
+    info: { title: 'My API', version: '1.0.0' },
+  },
+  apis: ['./routes/routes.js'], // paths to your API docs
+};
+const specs = swaggerJsdoc(options);
+// app.use('/docs', swaggerUi.serve, swaggerUi.setup(specs));
+//
+const YAML = require('yamljs');
+const swaggerDocument = YAML.load('./swagger.yaml');
+app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+//
 app.get("/", (req, res) => { res.send(`port live on host ${req.socket.localPort}`) });
 app.use("/", routes);
 app.use(validationRouter);

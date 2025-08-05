@@ -48,6 +48,15 @@ module.exports = (sequelize, DataTypes) => {
         allowNull: false,
         defaultValue: "active",
       },
+
+      salary: {
+        type: DataTypes.DECIMAL(10, 2), // e.g., 99999999.99 max
+        allowNull: true,
+        validate: {
+          min: 0,
+        },
+      },
+
     },
     {
       tableName: "tbl_employee",
